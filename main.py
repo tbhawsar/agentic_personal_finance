@@ -24,9 +24,22 @@ class State(TypedDict):
 
 # Pydantic type enforcer
 class MessageClassifier(BaseModel):
-    message_type: Literal["emotional", "logical"] = Field(
+    message_type: Literal[
+        
+        "shopping-online",
+        "grocery",
+        "food",
+        "fuel",
+        "salary",
+        "train",
+        "investment",
+        "subscription",
+        "miscellaneous",
+        "refund",
+
+    ] = Field(
         ...,
-        description = "Classify if the message requires an emotional (therapist) or logical response."
+        description = "Classify the transaction type."
     )
 
 graph_builder = StateGraph(State)
@@ -38,9 +51,23 @@ def classify_message(state: State):
     result = classifier_llm.invoke([
         {
             "role": "system",
-            "content": """Classify the message as either:
-            - 'emotional': if it asks for emotional/therapist support, deals with feelings or personal problems
-            - 'logical': if it asks for facts, information, logical analysis, or practical solutions 
+            "content": """
+            using the description and the amount of the transaction, 
+            classify the transaction based on which category it best fits into out of the following:
+            
+            "shopping-online"
+            "grocery"
+            "food"
+            "fuel"
+            "salary"
+            "train"
+            "investment"
+            "subscription"
+            "miscellaneous"
+            "refund"
+
+            return the single category as your response e.g. "salary". 
+            Transactions with a positive value are money in (earnings, refunds or transfers from other people/accounts) and those with a negative value are outgoings/spending.
             """
         },
         {
@@ -51,70 +78,71 @@ def classify_message(state: State):
     
     return {"message_type": result.message_type}
 
-def route_message(state: State):
-    message_type = state.get("message_type", "logical")
-    if message_type == "emotional":
-        return {"next": "therapist_agent"}
-    return {"next": "logical_agent"}
+# def route_message(state: State):
+#     message_type = state.get("message_type", "logical")
+#     if message_type == "emotional":
+#         return {"next": "therapist_agent"}
+#     return {"next": "logical_agent"}
 
-def therapist_agent(state: State):
-    last_message = state["messages"][-1]
+# def therapist_agent(state: State):
+#     last_message = state["messages"][-1]
 
-    messages = [
-    {
-        "role": "system",
-        "content": """You are a compassionate therapist. Focus on the emotional aspects of the question. 
-        Show empathy, validate the users feelings, and help them process their emotions.
-        Ask thoughtful questions to help them explore thier feelings more openly.
-        Avoid giving logical solutions unless explicitly asked. 
-        """
-    },
-    {
-        "role": "user",
-        "content": last_message.content
-    }
-    ]
+#     messages = [
+#     {
+#         "role": "system",
+#         "content": """You are a compassionate therapist. Focus on the emotional aspects of the question. 
+#         Show empathy, validate the users feelings, and help them process their emotions.
+#         Ask thoughtful questions to help them explore thier feelings more openly.
+#         Avoid giving logical solutions unless explicitly asked. 
+#         """
+#     },
+#     {
+#         "role": "user",
+#         "content": last_message.content
+#     }
+#     ]
 
-    reply = llm.invoke(messages)
-    return {"messages": [{"role": "assistant", "content": reply.content}]}
+#     reply = llm.invoke(messages)
+#     return {"messages": [{"role": "assistant", "content": reply.content}]}
 
-def logical_agent(state: State):
-    last_message = state["messages"][-1]
+# def logical_agent(state: State):
+#     last_message = state["messages"][-1]
 
-    messages = [
-    {
-        "role": "system",
-        "content": """You are a purely logical assistant. Focus only on facts and information. 
-        Provide clear, concise answers based on logic and evidence.
-        Do not address emotions or provide emotional support.
-        Be direct and straightforward in your responses.
-        """
-    },
-    {
-        "role": "user",
-        "content": last_message.content
-    }
-    ]
+#     messages = [
+#     {
+#         "role": "system",
+#         "content": """You are a purely logical assistant. Focus only on facts and information. 
+#         Provide clear, concise answers based on logic and evidence.
+#         Do not address emotions or provide emotional support.
+#         Be direct and straightforward in your responses.
+#         """
+#     },
+#     {
+#         "role": "user",
+#         "content": last_message.content
+#     }
+#     ]
 
-    reply = llm.invoke(messages)
-    return {"messages": [{"role": "assistant", "content": reply.content}]}
+#     reply = llm.invoke(messages)
+#     return {"messages": [{"role": "assistant", "content": reply.content}]}
 
 graph_builder.add_node("classify_message", classify_message)
-graph_builder.add_node("route_message", route_message)
-graph_builder.add_node("therapist_agent", therapist_agent)
-graph_builder.add_node("logical_agent", logical_agent)
+# graph_builder.add_node("route_message", route_message)
+# graph_builder.add_node("therapist_agent", therapist_agent)
+# graph_builder.add_node("logical_agent", logical_agent)
 
 graph_builder.add_edge(START,"classify_message")
-graph_builder.add_edge("classify_message","route_message")
+# graph_builder.add_edge("classify_message","route_message")
+graph_builder.add_edge("classify_message",END)
 
-graph_builder.add_conditional_edges(
-    "route_message",
-    lambda state: state.get("next"),
-    {"therapist_agent": "therapist_agent", "logical_agent": "logical_agent"}
-    )
+# graph_builder.add_conditional_edges(
+#     "route_message",
+#     lambda state: state.get("next"),
+#     {"therapist_agent": "therapist_agent", "logical_agent": "logical_agent"}
+#     )
 
-graph_builder.add_edge("therapist_agent",END)
-graph_builder.add_edge("logical_agent",END)
+# graph_builder.add_edge("therapist_agent",END)
+# graph_builder.add_edge("logical_agent",END)
 
 graph = graph_builder.compile()
 
@@ -136,8 +164,8 @@ def run_chatbot():
         state = graph.invoke(state)
 
         if state.get("messages") and len(state.get("messages")) > 0:
-            last_message = state.get("messages")[-1]
-            print(f"Assisstant: {last_message.content}")
+            last_message = state.get("message_type")
+            print(f"Transaction Category: {last_message}")
 
 if __name__ == "__main__":
     run_chatbot()

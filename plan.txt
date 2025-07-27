@@ -1,0 +1,35 @@
+Agentic finance project
+
+Basic Outline:
+1) Import .TXT
+2) read txt data into table
+3) classify spending categories
+4) return table with categories
+
+StateGraph:
+- START
+- class State(TypedDict):
+    date: str | None
+    description: str | None
+    amount: int | float | None
+    category: TransactionCategory | None
+
+
+class TransactionCategory
+Literal[] of the below
+"shopping-online"
+"grocery"
+"food"
+"fuel"
+"salary"
+"train"
+"investment"
+"subscription"
+"miscellaneous"
+"refund"
+
+-> prompt:
+based on the description and the amount of the transaction, 
+determine the category of the transaction based on what it best fits into. 
+return the single category as your response e.g. "salary". 
+Transactions with a positive value are money in (earnings, refunds or transfers from other people/accounts) and those with a negative value are outgoings/spending. 
